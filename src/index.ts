@@ -1,8 +1,6 @@
 import express, { Request, Response } from 'express';
 import multer, {FileFilterCallback} from 'multer';
 import path from 'path';
-import sharp from 'sharp';
-import heic2any from 'heic2any';
 import fs from 'fs-extra';
 import convert from 'heic-convert';
 
@@ -41,23 +39,6 @@ const storage = multer.diskStorage({
     }
   }).single('image'); 
   
-
-//   app.post('/api/upload', async (req: Request, res: Response) => {
-//     upload(req, res, (err: any) => {
-//       if (err) {
-//         res.status(400).json({ error: err.message });
-//       } else {
-//         if (req.file == undefined) {
-//           res.status(400).json({ error: 'No file selected' });
-//         } else {
-//           res.json({
-//             message: 'File uploaded successfully',
-//             file: `uploads/${req.file.filename}`
-//           });
-//         }
-//       }
-//     });
-//   });
   
 app.post('/api/upload', async (req: Request, res: Response) => {
     upload(req, res, async (err: any) => {
