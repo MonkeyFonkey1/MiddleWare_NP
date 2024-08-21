@@ -67,16 +67,19 @@ app.post('/api/upload', async (req: Request, res: Response) => {
   
       const filePath = req.file.path;
       const extname = path.extname(filePath).toLowerCase();
-      
+  
       try {
         if (extname === '.heic') {
           // Convert HEIC to JPEG
           const inputBuffer = await fs.readFile(filePath);
-          const outputBuffer = await convert({
+          const outputArrayBuffer = await convert({
             buffer: inputBuffer,
             format: 'JPEG',
             quality: 1
           });
+  
+          // Convert ArrayBuffer to Buffer
+          const outputBuffer = Buffer.from(outputArrayBuffer);
   
           // Save the converted image
           const outputPath = path.join('./uploads/', `${req.file.filename}.jpg`);
@@ -103,6 +106,7 @@ app.post('/api/upload', async (req: Request, res: Response) => {
       }
     });
   });
+  
   
 
   app.use('/uploads', express.static('uploads'));
