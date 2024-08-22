@@ -1,99 +1,102 @@
 import express, { Request, Response } from 'express';
-import multer, {FileFilterCallback} from 'multer';
+import { upload } from './Storage';
 import path from 'path';
-import fs from 'fs-extra';
-import convert from 'heic-convert';
+import md5 from 'md5';
+import { User } from './types';
+import { v4 as uuidv4 } from 'uuid';
 
-  
 const app = express();
 const port = 3000;
 
+app.use(express.json());
 
-// Set up storage engine
-const storage = multer.diskStorage({
-    destination: './uploads/',
-    filename: (req, file, cb) => {
-      cb(null, `${file.fieldname}-${Date.now()}${path.extname(file.originalname)}`);
-    }
-  });
-  
-  // Check File Type
-  const checkFileType = (file: Express.Multer.File, cb: FileFilterCallback) => {
-    const filetypes = /jpeg|jpg|png/;
-    const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = filetypes.test(file.mimetype);
-  
-    if (mimetype && extname) {
-      return cb(null, true);
-    } else {
-      cb(new Error('Images only!'));
-    }
-  };
-  
-  // Initialize upload
-  const upload = multer({
-    storage: storage,
-    limits: { fileSize: 10 * 1024 * 1024 }, // Limit file size to 10MB
-    fileFilter: (req, file, cb) => {
-      checkFileType(file, cb);
-    }
-  }).single('image'); 
-  
-  
-app.post('/api/upload', async (req: Request, res: Response) => {
-    upload(req, res, async (err: any) => {
-      if (err) return res.status(400).json({ error: err.message });
-  
-      if (!req.file) return res.status(400).json({ error: 'No file selected' });
-  
-      const filePath = req.file.path;
-      const extname = path.extname(filePath).toLowerCase();
-  
-      try {
-        if (extname === '.heic') {
-          // Convert HEIC to JPEG
-          const inputBuffer = await fs.readFile(filePath);
-          const outputArrayBuffer = await convert({
-            buffer: inputBuffer,
-            format: 'JPEG',
-            quality: 1
-          });
-  
-          // Convert ArrayBuffer to Buffer
-          const outputBuffer = Buffer.from(outputArrayBuffer);
-  
-          // Save the converted image
-          const outputPath = path.join('./uploads/', `${req.file.filename}.jpg`);
-          await fs.writeFile(outputPath, outputBuffer);
-  
-          // Clean up original file
-          await fs.remove(filePath);
-  
-          // Respond with the path to the converted file
-          return res.json({
-            message: 'File uploaded and converted successfully',
-            file: `uploads/${path.basename(outputPath)}`
-          });
+export const users: User[] = [];
+
+app.post('/api/register', (req: Request, res: Response) => {
+    console.log(req);
+    const { name, email, password } = req.body;
+
+    const emailPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    const namePattern = /^[a-zA-Z\s]+$/;
+    const passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{6,}$/;
+
+    // Validating inputs
+    if (!emailPattern.test(email)) return res.status(400).json({ error: 'Invalid email format' });
+    if (!namePattern.test(name)) return res.status(400).json({ error: 'Name should contain only letters and spaces' });
+    if (!passwordPattern.test(password)) return res.status(400).json({ error: 'Password should be at least 8 characters long, and include an uppercase letter, a number, and a special character' });
+
+
+    // Check if user is already registered
+    if (users.find(user => user.email === email)) return res.status(400).json({ error: 'Email is already registered' });
+
+    const encryptedPassword = md5(password);
+    const sessionId = uuidv4();
+
+    const newUser: User = {
+        name,
+        email,
+        password: encryptedPassword,
+        sessionId,
+        history: [],
+    };
+
+    users.push(newUser);
+
+    return res.status(200).json({ message: 'User registered successfully', user: { sessionId } });
+});
+
+app.post('/api/login', (req:Request, res: Response) => {
+  const {email, password } = req.body;
+
+  if (!email || !password) return res.status(400).json({ error: 'Email and password are required' });
+  const user = users.find(user => user.email === email && user.password === md5(password));
+
+  if (!user) {
+    return res.status(400).json({ error: 'Invalid email or password' });
+  }
+
+  user.sessionId = uuidv4();
+  return res.status(200).json({ message: 'Login successful', sessionId: user.sessionId });
+
+});
+
+app.post('/api/upload', (req: Request, res: Response) => {
+    upload(req, res, (err: any) => {
+        if (err) return res.status(400).json({ error: err.message });
+
+        if (!req.file) return res.status(400).json({ error: 'No file selected' });
+
+        const filePath = req.file.path;
+        const extname = path.extname(filePath).toLowerCase();
+
+        try {
+            return res.json({
+                message: 'File uploaded successfully',
+                file: `uploads/${req.file.filename}`,
+            });
+        } catch (conversionError) {
+            return res.status(500).json({ error: 'Error processing file' });
         }
-  
-        // For non-HEIC files, just return the path
-        return res.json({
-          message: 'File uploaded successfully',
-          file: `uploads/${req.file.filename}`
-        });
-  
-      } catch (conversionError) {
-        return res.status(500).json({ error: 'Error processing file' });
-      }
     });
-  });
-  
-  
+});
 
-  app.use('/uploads', express.static('uploads'));
+app.post('/api/logout', (req: Request, res: Response) => {
+  const { sessionId } = req.body;
+  if (!sessionId) return res.status(400).json({ error: 'Session ID is required' });
 
+  const user = users.find(user => user.sessionId === sessionId);
+
+  if (!user) {
+      return res.status(400).json({ error: 'Invalid session ID' });
+  }
+
+  user.sessionId = '';
+
+  return res.status(200).json({ message: 'Logout successful' });
+});
+
+app.use('/uploads', express.static('uploads'));
 
 app.listen(port, () => {
     console.log(`Server is running at http://localhost:${port}`);
 });
- 
