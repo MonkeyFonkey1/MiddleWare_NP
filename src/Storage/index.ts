@@ -5,12 +5,14 @@ import path from 'path';
 export const storage = multer.diskStorage({
     destination: './uploads/',
     filename: (req, file, cb) => {
+        console.log(file);
         cb(null, `${file.fieldname}-${Date.now()}${path.extname(file.originalname)}`);
     },
 });
 
 // Check File Type
 export const checkFileType = (file: Express.Multer.File, cb: FileFilterCallback) => {
+    console.log(file);
     const filetypes = /jpeg|jpg|png/;
     const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
     const mimetype = filetypes.test(file.mimetype);
