@@ -1,8 +1,7 @@
-
 export type History = {
     image: string;
     name: string;
-    recomandations: string[];
+    recommendations: string[];
 };
 
 export type User = {
@@ -12,4 +11,3 @@ export type User = {
     sessionId: string;
     history: History[];
 };
-
