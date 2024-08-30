@@ -6,7 +6,7 @@ import { getRandomLesion } from './DataSet/lesions';
 import fs from 'fs';
 import multer from 'multer';
 
-const ip = '192.168.44.8';
+const ip = '192.168.44.13';
 const app = express();
 const port = 3000;
 const upload = multer({
@@ -18,36 +18,22 @@ const upload = multer({
 
 app.use(express.json());
 
-export const users: User[] = [
-    {
-        name: 'Andrei',
-        email: 'Andrei@yahoo.com',
-        password: md5('andrei'),
-        sessionId: '4b878bb1-20c8-4be5-8582-451c767aaf6a',
-        history: [
-            // {
-            //     image: './uploads/1724847751243.jpg',
-            //     name: 'lesion4',
-            //     recommendations: ['recommendation4_1', 'recommendation4_2', 'recommendation4_3']
-            // }
-        ],
-    },
-];
+export const users: User[] = [];
 
 app.post('/api/register', (req: Request, res: Response) => {
     const { name, email, password } = req.body;
 
     const emailPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
     const namePattern = /^[a-zA-Z\s]+$/;
-    // const passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{6,}$/;
+    const passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d@$!%*?&]{5,}$/;
 
     // Validating inputs
     if (!emailPattern.test(email)) return res.status(200).json({ error: 'Invalid email format' });
     if (!namePattern.test(name)) return res.status(200).json({ error: 'Name should contain only letters and spaces' });
-    // if (!passwordPattern.test(password))
-    //     return res.status(200).json({
-    //         error: 'Password should be at least 8 characters long, and include an uppercase letter, a number, and a special character',
-    //     });
+    if (!passwordPattern.test(password))
+        return res.status(200).json({
+            error: 'Password should be at least 5 characters long, and include an uppercase letter, a number',
+        });
 
     // Check if user is already registered
     if (users.find(user => user.email === email)) return res.status(200).json({ error: 'Email is already registered' });
@@ -144,12 +130,6 @@ app.post('/api/upload', upload.none(), (req: Request, res: Response) => {
         message: 'File uploaded successfully',
         lesion: historyItem,
     });
-
-    // return res.json({
-    //     message: 'File uploaded successfully',
-    //     lesion: historyItem,
-    //     history: user.history, // Return the updated history here
-    // });
 });
 
 app.post('/api/logout', (req: Request, res: Response) => {
