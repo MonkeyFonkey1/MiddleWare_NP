@@ -6,7 +6,7 @@ import { getRandomLesion } from './DataSet/lesions';
 import fs from 'fs';
 import multer from 'multer';
 
-const ip = '192.168.44.13';
+const ip = '192.168.44.21';
 const app = express();
 const port = 3000;
 const upload = multer({
